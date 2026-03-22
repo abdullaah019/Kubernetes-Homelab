@@ -1,0 +1,16 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cloudnativepg
+  namespace: cloudnativepg
+spec:
+  interval: 1h
+  timeout: 5m
+  chart:
+    spec:
+      chart: cloudnative-pg
+      version: "0.x"
+      sourceRef:
+        kind: HelmRepository
+        name: cloudnativepg
+        namespace: flux-system
