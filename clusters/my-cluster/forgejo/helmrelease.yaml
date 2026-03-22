@@ -1,0 +1,19 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: forgejo
+  namespace: forgejo
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: forgejo
+      version: "12.x"
+      sourceRef:
+        kind: HelmRepository
+        name: forgejo
+        namespace: flux-system
+  values:
+    service:
+      http:
+        type: LoadBalancer
