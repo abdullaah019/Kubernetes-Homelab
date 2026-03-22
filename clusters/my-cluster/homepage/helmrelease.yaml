@@ -18,3 +18,5 @@ spec:
     service:
       main:
         type: LoadBalancer
+    env:
+      HOMEPAGE_ALLOWED_HOSTS: "*"
