@@ -1,0 +1,19 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: uptime-kuma
+  namespace: uptime-kuma
+spec:
+  interval: 1h
+  timeout: 5m
+  chart:
+    spec:
+      chart: uptime-kuma
+      version: "2.x"
+      sourceRef:
+        kind: HelmRepository
+        name: uptime-kuma
+        namespace: flux-system
+  values:
+    service:
+      type: LoadBalancer
