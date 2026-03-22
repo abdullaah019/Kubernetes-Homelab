@@ -5,6 +5,7 @@ metadata:
   namespace: forgejo
 spec:
   interval: 1h
+  timeout: 10m
   chart:
     spec:
       chart: forgejo
@@ -17,3 +18,19 @@ spec:
     service:
       http:
         type: LoadBalancer
+    postgresql-ha:
+      enabled: false
+    postgresql:
+      enabled: true
+    redis-cluster:
+      enabled: false
+    redis:
+      enabled: false
+    gitea:
+      config:
+        cache:
+          ADAPTER: memory
+        session:
+          PROVIDER: memory
+        queue:
+          TYPE: level
