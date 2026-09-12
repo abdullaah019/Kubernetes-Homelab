@@ -14,6 +14,21 @@ monitoring, databases, and ingress — all on a single PC at home. Every app
 is deployed automatically from this git repository. No manual kubectl commands 
 in production.
 
+## Physical Infrastructure
+
+### Proxmox Cluster — Seen-cluster
+Expanded from a single machine to a 2-node Proxmox cluster:
+
+| Node | IP | Role | VMs |
+|------|----|------|-----|
+| proxmox (node 1) | 192.168.0.187 | Primary | k3s-control |
+| proxmox2 (node 2) | 192.168.0.188 | Secondary | k3s-worker-1, k3s-worker-2 |
+
+### External Access
+- Domain: abdullaahyaseen.com
+- DNS managed through Cloudflare
+- Cloudflare Tunnel running as a systemd service for secure external access — no open ports, home IP never exposed
+
 ---
 
 ## Stack
@@ -35,7 +50,7 @@ in production.
 Downloaded and flashed Proxmox VE to a USB drive, installed it directly on 
 bare metal replacing the existing OS. Proxmox turns one physical PC into a 
 hypervisor capable of running multiple virtual machines simultaneously.
-
+abdullaah019/homelab
 After installation, expanded the storage by removing the default LVM partition 
 and reclaiming the full disk space for VM storage.
 
