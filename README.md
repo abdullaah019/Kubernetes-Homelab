@@ -32,6 +32,7 @@ cluster real quorum: any one node can go down and the other two keep it running.
 - Domain: abdullaahyaseen.com
 - DNS managed through Cloudflare
 - Cloudflare Tunnel running as a systemd service for secure external access — no open ports, home IP never exposed
+- Tailscale (tailnet `tail9966c9.ts.net`) for private remote access to homelab apps — tailnet devices only, valid HTTPS certs
 
 ---
 
@@ -136,7 +137,10 @@ and HelmRelease YAML, push to GitHub, Flux deploys it.
 | Grafana + Prometheus | monitoring | Metrics, dashboards, alerting |
 | Uptime Kuma | uptime-kuma | Uptime monitoring + Telegram alerts |
 | CloudNativePG | cloudnativepg | PostgreSQL operator for Kubernetes |
-| Stremio | stremio | Media streaming server + web player (LAN only) |
+| Stremio | stremio | Media streaming server + web player (LAN + Tailscale) |
+| Jellyfin | jellyfin | Media server for my own library, on shared NFS storage |
+| Tailscale operator | tailscale | Exposes apps privately on the tailnet with HTTPS |
+| NFS provisioner | nfs-provisioner | Shared `nfs` StorageClass backed by proxmox3 |
 
 <img width="1255" height="469" alt="Uptime Kuma" src="https://github.com/user-attachments/assets/b2013b7e-9e1a-44e1-8a47-499a254dac4e" />
 
@@ -167,10 +171,66 @@ app by hostname:
 - `homepage.homelab.local`
 - `uptime.homelab.local`
 - `stremio.homelab.local`
+- `jellyfin.homelab.local`
 
 k3s's bundled Traefik is disabled (`/etc/rancher/k3s/config.yaml` → `disable: [traefik]`)
 so it doesn't hold ports 80/443. Nginx's LoadBalancer service gets the node IPs through
 k3s ServiceLB.
+
+---
+
+## Step 8 — Private remote access with Tailscale
+
+Installed the Tailscale Kubernetes operator via Flux (`clusters/my-cluster/tailscale/`).
+Any app gets a private HTTPS address on the tailnet by adding an Ingress with
+`ingressClassName: tailscale` — e.g. `https://stremio.<tailnet>.ts.net`. Nothing is
+exposed to the public internet.
+
+Setup in the Tailscale admin console:
+
+1. Policy file → `tagOwners`: `"tag:k8s-operator": []` and `"tag:k8s": ["tag:k8s-operator"]`
+2. Settings → Trust credentials → OAuth client with **write** on Services, Devices/Core
+   and Keys/Auth Keys, each tagged `tag:k8s-operator` (nothing else)
+3. DNS → MagicDNS and HTTPS Certificates enabled
+
+The OAuth credentials never go in git. They live only in a cluster Secret:
+
+```bash
+read -p "Client ID: " TS_ID
+read -s -p "Client secret: " TS_SECRET; echo
+kubectl -n tailscale create secret generic operator-oauth \
+  --from-literal=client_id="$TS_ID" --from-literal=client_secret="$TS_SECRET" \
+  --dry-run=client -o yaml | kubectl apply -f -
+unset TS_ID TS_SECRET
+```
+
+---
+
+## Step 9 — Shared storage over NFS
+
+k3s's default `local-path` storage pins an app to the node holding its data, and the
+worker disks are small. Media storage lives on proxmox3 instead, shared over NFS so any
+worker can use it:
+
+```bash
+# On proxmox3: 120G thin volume from the empty data pool, exported to the k3s VMs only
+lvcreate -V 120G -T pve/data -n media
+mkfs.ext4 -L media /dev/pve/media
+mkdir -p /srv/media && echo '/dev/pve/media /srv/media ext4 defaults 0 2' >> /etc/fstab && mount /srv/media
+apt install -y nfs-kernel-server && mkdir -p /etc/exports.d
+# /etc/exports.d/k3s.exports lists 192.168.0.88, .216 and .106 with rw,sync,no_subtree_check,no_root_squash
+exportfs -ra
+
+# On every k3s VM
+sudo apt install -y nfs-common
+```
+
+The `nfs-subdir-external-provisioner` (`clusters/my-cluster/nfs-provisioner/`) turns
+the share into an `nfs` StorageClass (reclaim policy `Retain`). Jellyfin uses it for a
+100Gi `ReadWriteMany` media library.
+
+A nightly CronJob (`jellyfin/cleanup-cronjob.yaml`, 3 AM Phoenix) deletes media not
+opened in 30+ days, then empty folders. Change `+30` to adjust.
 
 ---
 
@@ -191,7 +251,10 @@ clusters/my-cluster/
 ├── cloudnativepg/    # PostgreSQL operator
 ├── ingress/          # Nginx ingress + routing rules
 ├── databases/        # PostgreSQL clusters
-└── stremio/          # Stremio server + web player
+├── stremio/          # Stremio server + web player
+├── jellyfin/         # Jellyfin + 30-day media cleanup CronJob
+├── tailscale/        # Tailscale operator (private remote access)
+└── nfs-provisioner/  # Shared NFS storage from proxmox3
 ```
 
 ---
