@@ -1,0 +1,24 @@
+# Tailscale Kubernetes operator.
+# OAuth credentials are NOT stored in git: the chart reads the pre-created
+# Secret "operator-oauth" (keys: client_id, client_secret) in this namespace:
+#   kubectl -n tailscale create secret generic operator-oauth \
+#     --from-literal=client_id=... --from-literal=client_secret=...
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: tailscale-operator
+  namespace: tailscale
+spec:
+  interval: 1h
+  timeout: 5m
+  chart:
+    spec:
+      chart: tailscale-operator
+      version: "1.x"
+      sourceRef:
+        kind: HelmRepository
+        name: tailscale
+        namespace: flux-system
+  values:
+    operatorConfig:
+      hostname: k3s-tailscale-operator

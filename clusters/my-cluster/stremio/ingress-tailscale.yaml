@@ -1,0 +1,17 @@
+# Private remote access over Tailscale: https://stremio.<tailnet>.ts.net
+# Only devices on the tailnet can reach it; valid HTTPS cert via Tailscale.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: stremio-tailscale
+  namespace: stremio
+spec:
+  ingressClassName: tailscale
+  defaultBackend:
+    service:
+      name: stremio
+      port:
+        number: 8080
+  tls:
+    - hosts:
+        - stremio
