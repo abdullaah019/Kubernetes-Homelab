@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stremio
+  namespace: stremio
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate            # RWO volume: never two pods at once
+  selector:
+    matchLabels:
+      app: stremio
+  template:
+    metadata:
+      labels:
+        app: stremio
+    spec:
+      affinity:
+        nodeAffinity:         # prefer the worker on proxmox3 (falls back to any node)
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: ["k3s-worker-2"]
+      containers:
+        - name: stremio
+          image: tsaridas/stremio-docker:latest
+          env:
+            - name: AUTO_SERVER_URL
+              value: "1"
+            - name: NO_CORS
+              value: "1"
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: data
+              mountPath: /root/.stremio-server
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              memory: 1536Mi
+          readinessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: stremio-data
