@@ -1,0 +1,39 @@
+# Nightly cleanup: delete media files not opened in 30+ days, then remove
+# empty folders. Change "+30" below to keep files longer or shorter.
+# Uses last-access time (atime); with the default relatime mount option it
+# updates at most once a day, which is plenty for a 30-day rule.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: media-cleanup
+  namespace: jellyfin
+spec:
+  schedule: "0 3 * * *"
+  timeZone: "America/Phoenix"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: cleanup
+              image: busybox:1.36
+              command:
+                - sh
+                - -c
+                - |
+                  echo "Deleting files not accessed in 30+ days:"
+                  find /media -type f -atime +30 -print -delete
+                  find /media -mindepth 1 -type d -empty -delete
+                  echo "Done."
+              volumeMounts:
+                - name: media
+                  mountPath: /media
+          volumes:
+            - name: media
+              persistentVolumeClaim:
+                claimName: jellyfin-media

@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-config
+  namespace: jellyfin
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: nfs
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Movie library. ReadWriteMany: Jellyfin and the cleanup job share it,
+# and Jellyfin can run on either worker.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: jellyfin-media
+  namespace: jellyfin
+spec:
+  accessModes: ["ReadWriteMany"]
+  storageClassName: nfs
+  resources:
+    requests:
+      storage: 100Gi
