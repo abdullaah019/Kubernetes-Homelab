@@ -17,12 +17,16 @@ in production.
 ## Physical Infrastructure
 
 ### Proxmox Cluster — Seen-cluster
-Expanded from a single machine to a 2-node Proxmox cluster:
+Expanded from a single machine to a 3-node Proxmox cluster (one k3s VM per node, so losing a node only takes out one piece of Kubernetes):
 
 | Node | IP | Role | VMs |
 |------|----|------|-----|
 | proxmox (node 1) | 192.168.0.187 | Primary | k3s-control |
-| proxmox2 (node 2) | 192.168.0.188 | Secondary | k3s-worker-1, k3s-worker-2 |
+| proxmox2 (node 2) | 192.168.0.188 | Secondary | k3s-worker-1 |
+| proxmox3 (node 3) | 192.168.0.189 | Tertiary | k3s-worker-2 |
+
+All nodes run Proxmox VE 9.2 on the no-subscription repository. Three nodes give the
+cluster real quorum: any one node can go down and the other two keep it running.
 
 ### External Access
 - Domain: abdullaahyaseen.com
@@ -60,9 +64,19 @@ and reclaiming the full disk space for VM storage.
 
 Created 3 Ubuntu Server 22.04 VMs inside Proxmox:
 
-- `k3s-control` — 2 cores, 2GB RAM, 20GB disk (control plane)
-- `k3s-worker-1` — 2 cores, 7GB RAM, 40GB disk (worker node)
-- `k3s-worker-2` — 2 cores, 7GB RAM, 40GB disk (worker node)
+- `k3s-control` — 2 cores, 4GB RAM, 20GB disk (control plane)
+- `k3s-worker-1` — 2 cores, 5GB RAM, 40GB disk (worker node)
+- `k3s-worker-2` — 2 cores, 5GB RAM, 40GB disk (worker node)
+
+> **Lessons learned:**
+> - Each Proxmox host has ~7.6GB RAM, so VM memory is sized to leave the host room to run.
+>   The workers originally had 7GB each on one host, which overcommitted it.
+> - The Ubuntu installer only allocates about half the disk to the root volume by default.
+>   Expand it to the full disk so nodes don't hit disk pressure and start evicting pods:
+>
+> ```bash
+> sudo lvextend -r -l +100%FREE /dev/ubuntu-vg/ubuntu-lv
+> ```
 
 Each VM was configured with OpenSSH enabled so they could be managed remotely 
 from a Windows machine.
@@ -122,6 +136,7 @@ and HelmRelease YAML, push to GitHub, Flux deploys it.
 | Grafana + Prometheus | monitoring | Metrics, dashboards, alerting |
 | Uptime Kuma | uptime-kuma | Uptime monitoring + Telegram alerts |
 | CloudNativePG | cloudnativepg | PostgreSQL operator for Kubernetes |
+| Stremio | stremio | Media streaming server + web player (LAN only) |
 
 <img width="1255" height="469" alt="Uptime Kuma" src="https://github.com/user-attachments/assets/b2013b7e-9e1a-44e1-8a47-499a254dac4e" />
 
@@ -151,6 +166,11 @@ app by hostname:
 - `grafana.homelab.local`
 - `homepage.homelab.local`
 - `uptime.homelab.local`
+- `stremio.homelab.local`
+
+k3s's bundled Traefik is disabled (`/etc/rancher/k3s/config.yaml` → `disable: [traefik]`)
+so it doesn't hold ports 80/443. Nginx's LoadBalancer service gets the node IPs through
+k3s ServiceLB.
 
 ---
 
@@ -170,7 +190,8 @@ clusters/my-cluster/
 ├── uptime-kuma/      # Uptime monitoring
 ├── cloudnativepg/    # PostgreSQL operator
 ├── ingress/          # Nginx ingress + routing rules
-└── databases/        # PostgreSQL clusters
+├── databases/        # PostgreSQL clusters
+└── stremio/          # Stremio server + web player
 ```
 
 ---
