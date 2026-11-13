@@ -28,6 +28,8 @@ Expanded from a single machine to a 3-node Proxmox cluster (one k3s VM per node,
 All nodes run Proxmox VE 9.2 on the no-subscription repository. Three nodes give the
 cluster real quorum: any one node can go down and the other two keep it running.
 
+![Proxmox 3-node cluster with one k3s VM per node](docs/images/proxmox-vm-layout.png)
+
 ### External Access
 - Domain: abdullaahyaseen.com
 - DNS managed through Cloudflare
@@ -231,6 +233,8 @@ the share into an `nfs` StorageClass (reclaim policy `Retain`). Jellyfin uses it
 
 A nightly CronJob (`jellyfin/cleanup-cronjob.yaml`, 3 AM Phoenix) deletes media not
 opened in 30+ days, then empty folders. Change `+30` to adjust.
+
+![Jellyfin with the Movies library on NFS storage](docs/images/jellyfin-library.png)
 
 ---
 
